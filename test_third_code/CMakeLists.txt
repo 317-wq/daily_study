@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.10)
+project(TEST)
+find_package(spdlog REQUIRED)
+add_executable(test_spdlog test_spdlog.cpp)
+target_link_libraries(test_spdlog PRIVATE spdlog::spdlog)
