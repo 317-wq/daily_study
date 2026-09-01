@@ -248,74 +248,124 @@
 //     return 0;
 // }
 
+// #include <iostream>
+// #include <mysql_driver.h>
+// #include <mysql_connection.h>
+// #include <cppconn/statement.h>
+// #include <cppconn/exception.h>
+// #include <cppconn/prepared_statement.h>
+// #include "SimpleIni.h"
+
+// int main() {
+//     // 1. 创建 SimpleIni 对象并加载配置
+//     CSimpleIniA ini;
+//     ini.SetUnicode(); // 支持 UTF-8
+    
+//     SI_Error rc = ini.LoadFile("config.ini");
+//     if (rc < 0) {
+//         std::cerr << "❌ 错误: 无法加载 config.ini 文件" << std::endl;
+//         std::cerr << "   请确保文件存在且格式正确" << std::endl;
+//         return 1;
+//     }
+
+//     try {
+//         // 2. 读取配置（带默认值，增强健壮性）
+//         const char* host = ini.GetValue("database", "host", "127.0.0.1");
+//         long port = ini.GetLongValue("database", "port", 3306);
+//         const char* user = ini.GetValue("database", "user", "");
+//         const char* password = ini.GetValue("database", "password", "");
+//         const char* database = ini.GetValue("database", "database", "");
+        
+//         // 检查必要的配置项是否为空
+//         if (user[0] == '\0' || password[0] == '\0' || database[0] == '\0') {
+//             std::cerr << "❌ 错误: config.ini 中缺少必要的配置项" << std::endl;
+//             return 1;
+//         }
+
+//         // 3. 连接数据库
+//         sql::mysql::MySQL_Driver *driver;
+//         sql::Connection *con;
+
+//         driver = sql::mysql::get_mysql_driver_instance();
+//         std::string connection_string = "tcp://" + std::string(host) + ":" + std::to_string(port);
+        
+//         std::cout << "🔗 正在连接数据库: " << connection_string << std::endl;
+//         con = driver->connect(connection_string, user, password);
+//         con->setSchema(database);
+
+//         std::cout << "✅ 数据库连接成功！" << std::endl;
+        
+//         // 4. 测试查询（可选）
+//         sql::Statement *stmt = con->createStatement();
+//         sql::ResultSet *res = stmt->executeQuery("SELECT VERSION()");
+//         if (res->next()) {
+//             std::cout << "📦 MySQL 版本: " << res->getString(1) << std::endl;
+//         }
+        
+//         // 5. 释放资源
+//         delete res;
+//         delete stmt;
+//         delete con;
+        
+//     } catch (sql::SQLException &e) {
+//         std::cerr << "❌ SQL错误: " << e.what() << std::endl;
+//         std::cerr << "   错误码: " << e.getErrorCode() << std::endl;
+//         std::cerr << "   SQL状态: " << e.getSQLState() << std::endl;
+//         return 1;
+//     } catch (std::exception &e) {
+//         std::cerr << "❌ 系统错误: " << e.what() << std::endl;
+//         return 1;
+//     }
+    
+//     return 0;
+// }
+
 #include <iostream>
-#include <mysql_driver.h>
-#include <mysql_connection.h>
-#include <cppconn/statement.h>
-#include <cppconn/exception.h>
-#include <cppconn/prepared_statement.h>
-#include "SimpleIni.h"
+#include <mysql_driver.h> // 核心驱动头文件
+#include <mysql_connection.h> // 数据库链接
+#include <cppconn/statement.h> // 执行sql语句
+#include <cppconn/resultset.h> // 对返回结果进行读取等操作
+#include <memory>
 
-int main() {
-    // 1. 创建 SimpleIni 对象并加载配置
-    CSimpleIniA ini;
-    ini.SetUnicode(); // 支持 UTF-8
+using namespace std;
+
+int main(){
+    // 1. 获取数据库驱动单例，建立连接
+    sql::mysql::MySQL_Driver *driver = sql::mysql::get_mysql_driver_instance();
     
-    SI_Error rc = ini.LoadFile("config.ini");
-    if (rc < 0) {
-        std::cerr << "❌ 错误: 无法加载 config.ini 文件" << std::endl;
-        std::cerr << "   请确保文件存在且格式正确" << std::endl;
-        return 1;
+    unique_ptr<sql::Connection> con(driver->connect(
+        "tcp://127.0.0.1:3306", "root", "lijiatong344A@"));
+
+    // 2. 选择数据库
+    con->setSchema("stu");
+
+    // // 3. 插入数据
+    // {
+    //     unique_ptr<sql::Statement> stmt(con->createStatement());
+    //     string sql = "insert into info (sname, score) values ('ks', 45), ('op', 89);";
+    //     int rows = stmt->executeUpdate(sql); // 执行插入操作，统一是更新操作
+    //     cout << rows << endl;
+    // }
+
+    // 4. 查询数据
+    {
+        unique_ptr<sql::Statement> stmt(con->createStatement());
+        unique_ptr<sql::ResultSet> res(stmt->executeQuery("select * from info;"));
+        while (res->next())
+        {
+            int sid = res->getInt("sid");
+            string sname = res->getString("sname");
+            double score = res->getDouble("score");
+            cout << sid << " " << sname << " " << score << endl;
+        }
     }
 
-    try {
-        // 2. 读取配置（带默认值，增强健壮性）
-        const char* host = ini.GetValue("database", "host", "127.0.0.1");
-        long port = ini.GetLongValue("database", "port", 3306);
-        const char* user = ini.GetValue("database", "user", "");
-        const char* password = ini.GetValue("database", "password", "");
-        const char* database = ini.GetValue("database", "database", "");
-        
-        // 检查必要的配置项是否为空
-        if (user[0] == '\0' || password[0] == '\0' || database[0] == '\0') {
-            std::cerr << "❌ 错误: config.ini 中缺少必要的配置项" << std::endl;
-            return 1;
-        }
-
-        // 3. 连接数据库
-        sql::mysql::MySQL_Driver *driver;
-        sql::Connection *con;
-
-        driver = sql::mysql::get_mysql_driver_instance();
-        std::string connection_string = "tcp://" + std::string(host) + ":" + std::to_string(port);
-        
-        std::cout << "🔗 正在连接数据库: " << connection_string << std::endl;
-        con = driver->connect(connection_string, user, password);
-        con->setSchema(database);
-
-        std::cout << "✅ 数据库连接成功！" << std::endl;
-        
-        // 4. 测试查询（可选）
-        sql::Statement *stmt = con->createStatement();
-        sql::ResultSet *res = stmt->executeQuery("SELECT VERSION()");
-        if (res->next()) {
-            std::cout << "📦 MySQL 版本: " << res->getString(1) << std::endl;
-        }
-        
-        // 5. 释放资源
-        delete res;
-        delete stmt;
-        delete con;
-        
-    } catch (sql::SQLException &e) {
-        std::cerr << "❌ SQL错误: " << e.what() << std::endl;
-        std::cerr << "   错误码: " << e.getErrorCode() << std::endl;
-        std::cerr << "   SQL状态: " << e.getSQLState() << std::endl;
-        return 1;
-    } catch (std::exception &e) {
-        std::cerr << "❌ 系统错误: " << e.what() << std::endl;
-        return 1;
+    // 5. 删除信息
+    {
+        unique_ptr<sql::Statement> stmt(con->createStatement());
+        string sql = "delete from info where sid between 3 and 6;";
+        int rows = stmt->executeUpdate(sql);
+        cout << rows << endl;
     }
-    
     return 0;
 }
